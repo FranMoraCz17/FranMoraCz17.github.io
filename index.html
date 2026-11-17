@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Francisco Mora | Cloud infrastructure and Kubernetes</title>
+<meta name="description" content="Francisco Mora. Cloud infrastructure and Kubernetes engineer in Costa Rica. RKE2 on AWS, Linux, automation with Ansible.">
+<meta property="og:title" content="Francisco Mora | Cloud infrastructure and Kubernetes">
+<meta property="og:description" content="I build infrastructure that survives losing a server. RKE2 on AWS, Linux, Ansible.">
+<meta property="og:type" content="website">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%230E0C1C'/%3E%3Crect x='7' y='7' width='8' height='8' rx='2' fill='%2335E0E8'/%3E%3Crect x='17' y='7' width='8' height='8' rx='2' fill='%2335E0E8'/%3E%3Crect x='7' y='17' width='8' height='8' rx='2' fill='%2335E0E8'/%3E%3Crect x='17' y='17' width='8' height='8' rx='2' fill='%23FF3D8B'/%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0E0C1C;
+    --surface: #19162D;
+    --raised: #231F3D;
+    --text: #ECEAF6;
+    --muted: #A5A2C2;
+    --cyan: #35E0E8;
+    --magenta: #FF3D8B;
+    --display: "Chakra Petch", "Trebuchet MS", sans-serif;
+    --body: "Hanken Grotesk", "Segoe UI", sans-serif;
+    --code: "JetBrains Mono", Consolas, monospace;
+    --wrap: 1120px;
+    --cut: polygon(0 0, calc(100% - 18px) 0, 100% 18px, 100% 100%, 18px 100%, 0 calc(100% - 18px));
+    --cut-s: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 8px 100%, 0 calc(100% - 8px));
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body);
+    font-size: 1.0625rem;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+  html[data-lang="en"] [lang="es"],
+  html[data-lang="es"] [lang="en"] { display: none !important; }
+
+  a { color: inherit; text-underline-offset: 0.2em; text-decoration-thickness: 1.5px; text-decoration-color: var(--cyan); }
+  a:hover { color: var(--cyan); }
+  :focus-visible { outline: 2px solid var(--magenta); outline-offset: 3px; }
+  h1, h2, h3 { font-family: var(--display); margin: 0; line-height: 1.1; letter-spacing: -0.01em; }
+  p { margin: 0; }
+  .wrap { max-width: var(--wrap); margin: 0 auto; padding: 0 24px; }
+
+  /* Top bar */
+  .top-inner { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 20px; padding-bottom: 20px; }
+  .who { font-family: var(--display); font-weight: 600; font-size: 1.15rem; text-decoration: none; }
+  .top nav { display: flex; align-items: center; gap: 26px; font-size: 0.95rem; }
+  .top nav a { text-decoration: none; color: var(--muted); }
+  .top nav a:hover { color: var(--cyan); }
+  .lang-btn {
+    font: 600 0.85rem var(--body); color: var(--bg); background: var(--text);
+    border: 0; padding: 7px 14px; cursor: pointer; clip-path: var(--cut-s);
+  }
+  .lang-btn:hover { background: var(--cyan); }
+  @media (max-width: 640px) { .top nav a { display: none; } }
+
+  /* Hero */
+  .top, .hero {
+    background-color: var(--bg);
+    background-image:
+      linear-gradient(rgba(53, 224, 232, 0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(53, 224, 232, 0.05) 1px, transparent 1px);
+    background-size: 56px 56px;
+    background-attachment: fixed;
+  }
+  .hero { padding: 40px 0 88px; border-bottom: 1px solid var(--raised); }
+  .hero h1 { font-size: clamp(2.4rem, 5.6vw, 4.2rem); font-weight: 600; max-width: 18ch; }
+  .hero-lede { margin-top: 24px; max-width: 54ch; font-size: 1.2rem; color: var(--muted); }
+  .hero-lede strong { color: var(--text); font-weight: 600; }
+
+  /* Cluster board */
+  .board { margin-top: 44px; }
+  .board-ask { font-family: var(--display); font-weight: 600; font-size: 1.3rem; margin-bottom: 18px; color: var(--cyan); }
+  .nodes { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .node {
+    clip-path: var(--cut);
+    padding: 18px;
+    min-height: 150px;
+    background: var(--surface);
+    transition: background 0.3s;
+  }
+  .node.down {
+    background: repeating-linear-gradient(135deg, rgba(255, 61, 139, 0.34) 0 10px, rgba(255, 61, 139, 0.12) 10px 20px);
+  }
+  .node-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 16px; }
+  .node-name { font-family: var(--display); font-weight: 600; font-size: 1.1rem; }
+  .node-state { font-size: 0.85rem; color: var(--cyan); display: block; }
+  .node.down .node-state { color: #FFA3C6; }
+  .switch {
+    font: 600 0.85rem var(--body);
+    border: 0; color: var(--text); background: var(--raised);
+    padding: 7px 14px; cursor: pointer; white-space: nowrap; clip-path: var(--cut-s);
+  }
+  .switch:hover { background: var(--magenta); color: var(--bg); }
+  .node.down .switch { background: var(--text); color: var(--bg); }
+  .node.down .switch:hover { background: var(--cyan); }
+  .pods { display: flex; flex-wrap: wrap; gap: 8px; }
+  .pod {
+    width: 36px; height: 36px; background: var(--cyan);
+    box-shadow: 0 0 14px rgba(53, 224, 232, 0.45);
+    transition: opacity 0.6s, transform 0.6s;
+    animation: arrive 0.4s ease-out;
+  }
+  .pod.leaving { opacity: 0; transform: scale(0.4); }
+  .pod.pending { background: transparent; border: 2px dashed var(--cyan); box-shadow: none; animation: none; }
+  @keyframes arrive { from { transform: scale(0); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+
+  .board-foot { display: flex; flex-wrap: wrap; align-items: center; gap: 14px 28px; margin-top: 20px; }
+  .counts { display: flex; gap: 22px; font-size: 0.95rem; color: var(--muted); }
+  .counts b { font-family: var(--display); font-size: 1.35rem; color: var(--text); margin-right: 6px; font-weight: 600; }
+  .waiting { display: flex; gap: 8px; align-items: center; min-height: 38px; }
+  .event { margin-top: 16px; min-height: 3.2em; max-width: 68ch; }
+  .rollout {
+    font: 600 0.9rem var(--body); cursor: pointer;
+    background: var(--cyan); color: var(--bg); border: 0; padding: 9px 18px; clip-path: var(--cut-s);
+  }
+  .rollout:hover { background: var(--text); }
+  @media (max-width: 760px) {
+    .nodes { grid-template-columns: 1fr; }
+    .node { min-height: 0; }
+  }
+
+  /* Sections */
+  .section { padding: 96px 0 0; }
+  .section h2 { font-size: clamp(1.9rem, 4.2vw, 3rem); font-weight: 600; max-width: 20ch; }
+  .section-note { margin-top: 18px; max-width: 62ch; color: var(--muted); }
+
+  /* Passer */
+  .phases { list-style: none; margin: 56px 0 0; padding: 0; display: grid; gap: 44px; }
+  .phase { display: grid; grid-template-columns: 220px 1fr; gap: 12px 40px; }
+  .phase-when { font-family: var(--display); font-weight: 500; font-size: 1.1rem; color: var(--cyan); }
+  .phase h3 { font-size: 1.45rem; font-weight: 600; margin-bottom: 8px; }
+  .phase p { max-width: 64ch; color: #D3D0E6; }
+  .nda { margin-top: 48px; font-size: 0.95rem; color: var(--muted); max-width: 64ch; }
+  @media (max-width: 760px) { .phase { grid-template-columns: 1fr; } }
+
+  /* Decisions */
+  .decisions { background: var(--surface); clip-path: polygon(0 0, calc(100% - 36px) 0, 100% 36px, 100% 100%, 36px 100%, 0 calc(100% - 36px)); padding: 56px; margin-top: 96px; }
+  .decisions h2 { font-size: clamp(1.6rem, 3.4vw, 2.3rem); font-weight: 600; }
+  .qa { display: grid; grid-template-columns: 1fr 1fr; gap: 40px 56px; margin-top: 40px; }
+  .qa h3 { font-size: 1.2rem; font-weight: 600; line-height: 1.25; margin-bottom: 8px; }
+  .qa p { color: var(--muted); }
+  @media (max-width: 760px) { .decisions { padding: 36px 24px; } .qa { grid-template-columns: 1fr; } }
+
+  /* Projects */
+  .projects { margin-top: 64px; display: grid; gap: 72px; }
+  .project { display: grid; grid-template-columns: 5fr 7fr; gap: 16px 48px; align-items: start; }
+  .project h3 { font-size: clamp(1.7rem, 3.4vw, 2.4rem); font-weight: 600; }
+  .project-role { margin-top: 10px; color: var(--cyan); font-size: 0.98rem; }
+  .project-body p + p { margin-top: 12px; }
+  .project-body p { max-width: 62ch; color: #D3D0E6; }
+  .project-body p.stack { color: var(--muted); font-size: 0.98rem; }
+  .project-link { display: inline-block; margin-top: 14px; font-weight: 600; }
+  pre.mae {
+    margin: 18px 0 0; padding: 22px 24px; overflow-x: auto; clip-path: var(--cut);
+    background: var(--surface); color: var(--text);
+    font: 400 0.9rem/1.65 var(--code);
+  }
+  pre.mae .k { color: var(--cyan); }
+  pre.mae .s { color: #FF8DBB; }
+  @media (max-width: 760px) { .project { grid-template-columns: 1fr; } }
+
+  /* Toolbox */
+  .levels { margin-top: 48px; display: grid; gap: 28px; }
+  .level { display: grid; grid-template-columns: 220px 1fr; gap: 8px 40px; }
+  .level h3 { font-size: 1.1rem; font-weight: 500; color: var(--cyan); line-height: 1.5; }
+  .level p { max-width: 64ch; color: #D3D0E6; }
+  @media (max-width: 760px) { .level { grid-template-columns: 1fr; } }
+
+  /* Contact */
+  .contact { background: var(--surface); margin-top: 112px; padding: 96px 0 56px; border-top: 2px solid var(--magenta); }
+  .contact h2 { font-size: clamp(1.9rem, 4.2vw, 3rem); font-weight: 600; max-width: 18ch; }
+  .mail {
+    display: inline-block; margin-top: 32px;
+    font-family: var(--display); font-weight: 600;
+    font-size: clamp(1.4rem, 4.6vw, 2.8rem);
+    text-decoration-thickness: 2px;
+    overflow-wrap: anywhere;
+  }
+  .elsewhere { display: flex; flex-wrap: wrap; gap: 12px 32px; margin-top: 32px; font-weight: 500; }
+  .facts { margin-top: 64px; display: grid; grid-template-columns: repeat(3, 1fr); gap: 32px; color: var(--muted); font-size: 0.98rem; }
+  .facts h3 { font-size: 1.05rem; font-weight: 600; color: var(--text); margin-bottom: 6px; line-height: 1.4; }
+  .closing { margin-top: 64px; font-size: 0.9rem; color: var(--muted); }
+  @media (max-width: 760px) { .facts { grid-template-columns: 1fr; } }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .pod, .node { transition: none; animation: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <div class="wrap top-inner">
+    <a class="who" href="#top">Francisco Mora</a>
+    <nav aria-label="Main">
+      <a href="#passer"><span lang="en">Experience</span><span lang="es">Experiencia</span></a>
+      <a href="#projects"><span lang="en">Projects</span><span lang="es">Proyectos</span></a>
+      <a href="#toolbox"><span lang="en">Toolbox</span><span lang="es">Herramientas</span></a>
+      <a href="#contact"><span lang="en">Contact</span><span lang="es">Contacto</span></a>
+      <button class="lang-btn" id="langBtn" type="button" aria-label="Cambiar a español">Español</button>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap">
+      <h1>
+        <span lang="en">I build infrastructure that survives losing a server.</span>
+        <span lang="es">Construyo infraestructura que sobrevive a la caída de un servidor.</span>
+      </h1>
+      <p class="hero-lede" lang="en">I'm <strong>Francisco Mora</strong>, a cloud infrastructure engineer in Costa Rica. I run Kubernetes (RKE2) on AWS, harden Linux nodes and automate the boring parts.</p>
+      <p class="hero-lede" lang="es">Soy <strong>Francisco Mora</strong>, ingeniero de infraestructura cloud en Costa Rica. Opero Kubernetes (RKE2) sobre AWS, endurezco nodos Linux y automatizo lo repetitivo.</p>
+
+      <div class="board" aria-labelledby="boardAsk">
+        <p class="board-ask" id="boardAsk">
+          <span lang="en">Don't take my word for it. Turn off a node.</span>
+          <span lang="es">No me creás a mí. Apagá un nodo.</span>
+        </p>
+        <div class="nodes" id="nodes"></div>
+        <div class="board-foot">
+          <div class="counts">
+            <span><b id="cDesired">6</b><span lang="en">desired</span><span lang="es">deseados</span></span>
+            <span><b id="cRunning">6</b><span lang="en">running</span><span lang="es">corriendo</span></span>
+            <span><b id="cPending">0</b><span lang="en">pending</span><span lang="es">pendientes</span></span>
+          </div>
+          <div class="waiting" id="waiting" aria-hidden="true"></div>
+          <button class="rollout" id="rollout" type="button">
+            <span lang="en">Restart rollout</span><span lang="es">Reiniciar despliegue</span>
+          </button>
+        </div>
+        <p class="event" id="event" role="status" aria-live="polite"></p>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="passer">
+    <div class="wrap">
+      <h2>
+        <span lang="en">Kubernetes platform at Passer Technologies</span>
+        <span lang="es">Plataforma Kubernetes en Passer Technologies</span>
+      </h2>
+      <p class="section-note" lang="en">Cloud infrastructure, July 2026 to present. Passer is a Costa Rican mobility and payments company moving from one virtual machine per application to containers. I own the Kubernetes side of that move, from the first design document to the running cluster.</p>
+      <p class="section-note" lang="es">Infraestructura cloud, julio de 2026 al presente. Passer es una empresa costarricense de movilidad y pagos que está pasando de una máquina virtual por aplicación a contenedores. Me toca la parte de Kubernetes de esa migración, desde el primer documento de diseño hasta el clúster funcionando.</p>
+
+      <ol class="phases">
+        <li class="phase">
+          <div class="phase-when"><span lang="en">Jul to Aug 2026</span><span lang="es">Jul a ago 2026</span></div>
+          <div>
+            <h3><span lang="en">Roadmap and proof of concept</span><span lang="es">Hoja de ruta y prueba de concepto</span></h3>
+            <p lang="en">Wrote the phased migration roadmap with isolated clusters per environment. Proved RKE2 on a three node lab, shutting nodes down on purpose to confirm pods were rescheduled without manual work.</p>
+            <p lang="es">Redacté la hoja de ruta de migración por fases con clústeres aislados por entorno. Validé RKE2 en un laboratorio de tres nodos, apagando nodos a propósito para confirmar que los pods se reprogramaban sin intervención.</p>
+          </div>
+        </li>
+        <li class="phase">
+          <div class="phase-when"><span lang="en">Sep 2026</span><span lang="es">Set 2026</span></div>
+          <div>
+            <h3><span lang="en">Standards the team adopted</span><span lang="es">Estándares que el equipo adoptó</span></h3>
+            <p lang="en">Defined naming, labels (app.kubernetes.io) and immutable image versioning for every Kubernetes resource. Designed the security group port matrix with least privilege inbound rules, the instance sizing and the installation runbook.</p>
+            <p lang="es">Definí nombres, etiquetas (app.kubernetes.io) y versionado inmutable de imágenes para todos los recursos de Kubernetes. Diseñé la matriz de puertos de los security groups con mínimo privilegio, el dimensionamiento de instancias y el procedimiento de instalación.</p>
+          </div>
+        </li>
+        <li class="phase">
+          <div class="phase-when"><span lang="en">Sep to Oct 2026</span><span lang="es">Set a oct 2026</span></div>
+          <div>
+            <h3><span lang="en">Development cluster on AWS EC2</span><span lang="es">Clúster de desarrollo en AWS EC2</span></h3>
+            <p lang="en">Installed the control plane and joined the first worker, with nodes registering over private addresses so a stop and start never breaks the cluster. Reissued the API certificate for a stable internal DNS name and put an ingress controller in front of workloads.</p>
+            <p lang="es">Instalé el plano de control y uní el primer worker, con registro por direcciones privadas para que apagar y encender una instancia no rompa el clúster. Regeneré el certificado del API para un nombre DNS interno estable y puse un controlador de entrada frente a las cargas.</p>
+          </div>
+        </li>
+        <li class="phase">
+          <div class="phase-when"><span lang="en">Oct 2026</span><span lang="es">Oct 2026</span></div>
+          <div>
+            <h3><span lang="en">Hardening before the first workload</span><span lang="es">Endurecimiento antes de la primera carga</span></h3>
+            <p lang="en">Applied the CIS profile on both nodes after rehearsing it in the lab, and verified the cluster rejects privileged pods. Built a namespace template with resource quotas, limits and network policies that deny by default.</p>
+            <p lang="es">Apliqué el perfil CIS en ambos nodos después de ensayarlo en el laboratorio, y verifiqué que el clúster rechaza pods privilegiados. Armé una plantilla de namespace con cuotas de recursos, límites y políticas de red que deniegan por defecto.</p>
+          </div>
+        </li>
+        <li class="phase">
+          <div class="phase-when"><span lang="en">Oct to Nov 2026</span><span lang="es">Oct a nov 2026</span></div>
+          <div>
+            <h3><span lang="en">Automation and the first migration</span><span lang="es">Automatización y la primera migración</span></h3>
+            <p lang="en">Proposed infrastructure as code with Ansible and got it approved: roles for base nodes, servers and agents, plus a node by node upgrade playbook, all passing ansible-lint on its production profile. Prepared manifests, health probes and the runbook to move the first production service into the cluster.</p>
+            <p lang="es">Propuse infraestructura como código con Ansible y fue aprobada: roles para nodos base, servers y agents, más un playbook de actualización nodo por nodo, todo pasando ansible-lint en su perfil de producción. Preparé manifiestos, sondas de salud y el runbook para mover el primer servicio de producción al clúster.</p>
+          </div>
+        </li>
+      </ol>
+      <p class="nda" lang="en">Details are generalized because this work is under a confidentiality agreement. Happy to go deeper on reasoning and trade-offs in a call.</p>
+      <p class="nda" lang="es">Los detalles están generalizados porque este trabajo está bajo un acuerdo de confidencialidad. Con gusto profundizo en el razonamiento y las decisiones en una llamada.</p>
+
+      <div class="decisions">
+        <h2><span lang="en">Four decisions I can defend out loud</span><span lang="es">Cuatro decisiones que puedo defender en voz alta</span></h2>
+        <div class="qa">
+          <div>
+            <h3><span lang="en">Why do nodes register by private address?</span><span lang="es">¿Por qué los nodos se registran por dirección privada?</span></h3>
+            <p lang="en">A public address on EC2 changes every time the instance stops and starts. The private one stays until the instance is terminated, so the cluster configuration never goes stale.</p>
+            <p lang="es">La dirección pública en EC2 cambia cada vez que la instancia se apaga y se enciende. La privada se mantiene hasta que la instancia se elimina, así que la configuración del clúster nunca queda obsoleta.</p>
+          </div>
+          <div>
+            <h3><span lang="en">Is a Kubernetes Secret actually secret?</span><span lang="es">¿Un Secret de Kubernetes es realmente secreto?</span></h3>
+            <p lang="en">Not by itself. It keeps values out of images and repositories, but anyone allowed to read it or exec into the pod sees it in plain text. I tested three ways to extract one. Access control is the real defense.</p>
+            <p lang="es">Por sí solo, no. Saca los valores de las imágenes y los repositorios, pero quien pueda leerlo o entrar al pod lo ve en texto plano. Probé tres formas de extraer uno. La defensa real es el control de acceso.</p>
+          </div>
+          <div>
+            <h3><span lang="en">Why one cluster per environment?</span><span lang="es">¿Por qué un clúster por entorno?</span></h3>
+            <p lang="en">A namespace separates services, not blast radius. A bad upgrade or a noisy workload in development should never be able to touch production.</p>
+            <p lang="es">Un namespace separa servicios, no el alcance de un fallo. Una mala actualización o una carga ruidosa en desarrollo nunca debería poder tocar producción.</p>
+          </div>
+          <div>
+            <h3><span lang="en">Why three control planes and not two?</span><span lang="es">¿Por qué tres planos de control y no dos?</span></h3>
+            <p lang="en">The cluster database needs a majority to accept writes. With two members, losing one leaves no majority, so two is no safer than one. Three tolerates one failure.</p>
+            <p lang="es">La base de datos del clúster necesita mayoría para aceptar escrituras. Con dos miembros, perder uno deja al otro sin mayoría, así que dos no es más seguro que uno. Tres tolera una caída.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="projects">
+    <div class="wrap">
+      <h2><span lang="en">Things I've shipped</span><span lang="es">Cosas que he puesto a funcionar</span></h2>
+
+      <div class="projects">
+        <article class="project">
+          <div>
+            <h3><span lang="en">Academic Quality Management</span><span lang="es">Gestión de Calidad Académica</span></h3>
+            <p class="project-role"><span lang="en">Full stack developer, team of 4, 2024 to present</span><span lang="es">Desarrollador full stack, equipo de 4, 2024 al presente</span></p>
+          </div>
+          <div class="project-body">
+            <p lang="en">An institutional platform in production, used by academic directors at Universidad Nacional. I designed and built the teaching workload domain: nine NestJS modules covering time allocations, professor assignments, cohorts and a professor portal, with the matching Next.js screens.</p>
+            <p lang="es">Plataforma institucional en producción, usada por directores académicos de la Universidad Nacional. Diseñé y construí el dominio de carga docente: nueve módulos en NestJS para asignaciones de tiempo, asignación de profesores, cohortes y un portal del profesor, con sus pantallas en Next.js.</p>
+            <p class="stack">TypeScript, NestJS, Next.js, Prisma, MongoDB, Docker, Google OAuth 2.0</p>
+            <a class="project-link" href="https://github.com/SeguraStward/Gestion_Calidad" target="_blank" rel="noopener"><span lang="en">View the repository</span><span lang="es">Ver el repositorio</span></a>
+          </div>
+        </article>
+
+        <article class="project">
+          <div>
+            <h3>Andromeda</h3>
+            <p class="project-role"><span lang="en">Middleware and integration, team of 4, 2026</span><span lang="es">Middleware e integración, equipo de 4, 2026</span></p>
+          </div>
+          <div class="project-body">
+            <p lang="en">A survival companion app that has to work without signal. I owned the layer between the phone and the API: an offline first sync queue with retries and conflict resolution, Firebase authentication verified on the server, and the API middleware for rate limiting and CORS.</p>
+            <p lang="es">App de supervivencia y exploración que tiene que funcionar sin señal. Me tocó la capa entre el teléfono y el API: una cola de sincronización offline first con reintentos y resolución de conflictos, autenticación con Firebase verificada en el servidor, y el middleware del API para rate limiting y CORS.</p>
+            <p class="stack">React Native, FastAPI, Firebase, monorepo, Render</p>
+          </div>
+        </article>
+
+        <article class="project">
+          <div>
+            <h3>Mae</h3>
+            <p class="project-role"><span lang="en">Personal project, 2025</span><span lang="es">Proyecto personal, 2025</span></p>
+          </div>
+          <div class="project-body">
+            <p lang="en">A statically typed programming language with Costa Rican keywords, written from scratch: lexer, recursive descent parser, syntax tree and interpreter, plus a desktop IDE, a REPL and a pytest suite. Programs open with mae and close with pura_vida.</p>
+            <p lang="es">Un lenguaje de programación con tipado estático y palabras clave ticas, hecho desde cero: lexer, parser de descenso recursivo, árbol de sintaxis e intérprete, más un IDE de escritorio, un REPL y pruebas en pytest. Los programas abren con mae y cierran con pura_vida.</p>
+<pre class="mae" aria-label="Mae code sample"><span class="k">mae,</span>
+    <span class="k">Ent</span> edad = 25;
+    <span class="k">Txt</span> nombre = <span class="s">"Carlos"</span>;
+
+    <span class="k">mae_si:</span> edad >= 18 {
+        <span class="k">diga</span>(<span class="s">"Adulto: "</span> + nombre)
+    }
+<span class="k">pura_vida.</span></pre>
+            <a class="project-link" href="https://github.com/FranMoraCz17/Tico_Language" target="_blank" rel="noopener"><span lang="en">View the repository</span><span lang="es">Ver el repositorio</span></a>
+          </div>
+        </article>
+
+        <article class="project">
+          <div>
+            <h3>Planty</h3>
+            <p class="project-role"><span lang="en">Personal project, 2026</span><span lang="es">Proyecto personal, 2026</span></p>
+          </div>
+          <div class="project-body">
+            <p lang="en">A mobile app that identifies plant species and diagnoses their health from a photo, backed by a containerized FastAPI service. This is the project where I learned to write Dockerfiles properly.</p>
+            <p lang="es">App móvil que identifica especies de plantas y diagnostica su salud a partir de una foto, sobre un servicio FastAPI en contenedor. Es el proyecto donde aprendí a escribir Dockerfiles como se debe.</p>
+            <p class="stack">React Native (Expo), TypeScript, FastAPI, Docker, Firebase, Gemini Vision</p>
+            <a class="project-link" href="https://github.com/FranMoraCz17/planty" target="_blank" rel="noopener"><span lang="en">View the repository</span><span lang="es">Ver el repositorio</span></a>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="section" id="toolbox">
+    <div class="wrap">
+      <h2><span lang="en">Toolbox, sorted by honesty</span><span lang="es">Herramientas, ordenadas con honestidad</span></h2>
+      <div class="levels">
+        <div class="level">
+          <h3><span lang="en">I use these every week</span><span lang="es">Las uso todas las semanas</span></h3>
+          <p>Kubernetes (RKE2, kubectl, Deployments, Services, Secrets, ConfigMaps, namespaces), Linux (Ubuntu, Debian), SSH, Docker, Git, YAML, Bash</p>
+        </div>
+        <div class="level">
+          <h3><span lang="en">I've built real things with these</span><span lang="es">He construido cosas reales con estas</span></h3>
+          <p lang="en">AWS EC2 and security groups, Docker Compose, iptables, Squid proxy, CIS hardening, TypeScript with NestJS and Next.js, Python with FastAPI, MongoDB, Firebase, Java, C++, SQL</p>
+          <p lang="es">AWS EC2 y security groups, Docker Compose, iptables, proxy Squid, endurecimiento CIS, TypeScript con NestJS y Next.js, Python con FastAPI, MongoDB, Firebase, Java, C++, SQL</p>
+        </div>
+        <div class="level">
+          <h3><span lang="en">I'm learning these now</span><span lang="es">Las estoy aprendiendo ahora</span></h3>
+          <p lang="en">Ansible, Terraform, access control by namespace (RBAC), observability, AWS Solutions Architect Associate</p>
+          <p lang="es">Ansible, Terraform, control de acceso por namespace (RBAC), observabilidad, AWS Solutions Architect Associate</p>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="contact" id="contact">
+  <div class="wrap">
+    <h2>
+      <span lang="en">Open to DevOps and cloud infrastructure roles.</span>
+      <span lang="es">Disponible para puestos de DevOps e infraestructura cloud.</span>
+    </h2>
+    <a class="mail" href="mailto:franmorac17@gmail.com">franmorac17@gmail.com</a>
+    <div class="elsewhere">
+      <a href="https://github.com/FranMoraCz17" target="_blank" rel="noopener">GitHub</a>
+      <a href="https://linkedin.com/in/francisco-mora-cz" target="_blank" rel="noopener">LinkedIn</a>
+      <a href="cv-en.pdf" lang="en">Download my CV (PDF)</a>
+      <a href="cv-es.pdf" lang="es">Descargar mi CV (PDF)</a>
+    </div>
+
+    <div class="facts">
+      <div>
+        <h3><span lang="en">Where and when</span><span lang="es">Dónde y cuándo</span></h3>
+        <p lang="en">Pérez Zeledón, Costa Rica (UTC-6). Remote or anywhere in Costa Rica. Available full time from December 2026.</p>
+        <p lang="es">Pérez Zeledón, Costa Rica (UTC-6). Remoto o en cualquier parte de Costa Rica. Disponible a tiempo completo desde diciembre de 2026.</p>
+      </div>
+      <div>
+        <h3><span lang="en">Education</span><span lang="es">Educación</span></h3>
+        <p lang="en">B.S. in Computer Systems Engineering, Universidad Nacional de Costa Rica. Coursework completed November 2026, degree expected 2027.</p>
+        <p lang="es">Bachillerato en Ingeniería en Sistemas de Información, Universidad Nacional de Costa Rica. Plan de estudios concluido en noviembre de 2026, graduación en 2027.</p>
+      </div>
+      <div>
+        <h3><span lang="en">Languages</span><span lang="es">Idiomas</span></h3>
+        <p lang="en">Spanish (native), English (C1, professional working proficiency), German (beginner).</p>
+        <p lang="es">Español (nativo), inglés (C1, dominio profesional), alemán (principiante).</p>
+      </div>
+    </div>
+    <p class="closing"><span lang="en">Hand written HTML, CSS and JavaScript. No framework, no tracker.</span><span lang="es">HTML, CSS y JavaScript escritos a mano. Sin framework, sin rastreadores.</span></p>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var root = document.documentElement;
+
+  /* Language */
+  var saved = null;
+  try { saved = localStorage.getItem('lang'); } catch (e) {}
+  var lang = saved || ((navigator.language || 'en').toLowerCase().indexOf('es') === 0 ? 'es' : 'en');
+  var langBtn = document.getElementById('langBtn');
+  function setLang(next) {
+    lang = next;
+    root.setAttribute('data-lang', lang);
+    root.setAttribute('lang', lang);
+    langBtn.textContent = lang === 'en' ? 'Español' : 'English';
+    langBtn.setAttribute('aria-label', lang === 'en' ? 'Cambiar a español' : 'Switch to English');
+    try { localStorage.setItem('lang', lang); } catch (e) {}
+    render();
+    say(lastEvent.key, lastEvent.data);
+  }
+  langBtn.addEventListener('click', function () { setLang(lang === 'en' ? 'es' : 'en'); });
+
+  /* Cluster: a tiny reconciliation loop */
+  var DESIRED = 6;
+  var nodes = [
+    { name: 'node-1', up: true },
+    { name: 'node-2', up: true },
+    { name: 'node-3', up: true }
+  ];
+  var pods = [];
+  var nextId = 1;
+  var lastEvent = { key: 'idle', data: {} };
+
+  var text = {
+    en: {
+      ready: 'Ready', notReady: 'NotReady', off: 'Turn off', on: 'Turn on',
+      idle: 'Six replicas of one service, spread across three nodes. Kubernetes keeps comparing what should exist with what does.',
+      down: function (d) { return d.name + ' went down and took ' + d.lost + ' pods with it. The control loop noticed the gap and started ' + d.lost + ' replacements on the nodes still standing.'; },
+      downEmpty: function (d) { return d.name + ' went down. It had no pods, so nothing needed to move.'; },
+      allDown: 'Every node is down, so six pods are waiting with nowhere to run. Redundancy only works if something is left standing. Turn a node back on.',
+      back: function (d) { return d.name + ' is back and empty. Kubernetes does not move healthy pods just to balance things, so it stays empty until the next rollout. Try the button.'; },
+      backPending: function (d) { return d.name + ' is back. The ' + d.n + ' pending pods were scheduled onto it right away.'; },
+      rollout: 'Rollout restarted. New pods were spread evenly across every node that is Ready.',
+      rolloutNone: 'Nothing to roll out onto. Turn a node on first.'
+    },
+    es: {
+      ready: 'Ready', notReady: 'NotReady', off: 'Apagar', on: 'Encender',
+      idle: 'Seis réplicas de un servicio, repartidas en tres nodos. Kubernetes compara todo el tiempo lo que debería existir con lo que existe.',
+      down: function (d) { return d.name + ' se cayó y se llevó ' + d.lost + ' pods. El ciclo de control notó la diferencia y levantó ' + d.lost + ' reemplazos en los nodos que siguen en pie.'; },
+      downEmpty: function (d) { return d.name + ' se cayó. No tenía pods, así que no hubo nada que mover.'; },
+      allDown: 'Todos los nodos están caídos, así que seis pods esperan sin dónde correr. La redundancia solo sirve si queda algo en pie. Encendé un nodo.',
+      back: function (d) { return d.name + ' volvió y está vacío. Kubernetes no mueve pods sanos solo para equilibrar, así que sigue vacío hasta el próximo despliegue. Probá el botón.'; },
+      backPending: function (d) { return d.name + ' volvió. Los ' + d.n + ' pods pendientes se programaron ahí de inmediato.'; },
+      rollout: 'Despliegue reiniciado. Los pods nuevos quedaron repartidos entre todos los nodos en Ready.',
+      rolloutNone: 'No hay dónde desplegar. Encendé un nodo primero.'
+    }
+  };
+
+  function say(key, data) {
+    lastEvent = { key: key, data: data || {} };
+    var t = text[lang][key];
+    document.getElementById('event').textContent = typeof t === 'function' ? t(lastEvent.data) : t;
+  }
+
+  function countOn(name) {
+    return pods.filter(function (p) { return p.node === name && !p.leaving; }).length;
+  }
+
+  /* Bring actual state toward desired state */
+  function reconcile() {
+    while (pods.filter(function (p) { return !p.leaving; }).length < DESIRED) {
+      pods.push({ id: nextId++, node: null, leaving: false });
+    }
+    var up = nodes.filter(function (n) { return n.up; });
+    pods.forEach(function (p) {
+      if (p.node === null && !p.leaving && up.length) {
+        up.sort(function (a, b) { return countOn(a.name) - countOn(b.name); });
+        p.node = up[0].name;
+      }
+    });
+  }
+
+  function podEl(p) {
+    var el = document.createElement('span');
+    el.className = 'pod' + (p.leaving ? ' leaving' : '') + (p.node === null ? ' pending' : '');
+    if (p.seen) el.style.animation = 'none';
+    p.seen = true;
+    return el;
+  }
+
+  function render() {
+    var box = document.getElementById('nodes');
+    box.innerHTML = '';
+    var t = text[lang];
+    nodes.forEach(function (n) {
+      var el = document.createElement('div');
+      el.className = 'node' + (n.up ? '' : ' down');
+      var head = document.createElement('div');
+      head.className = 'node-head';
+      var label = document.createElement('div');
+      label.innerHTML = '<span class="node-name">' + n.name + '</span><span class="node-state">' + (n.up ? t.ready : t.notReady) + '</span>';
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'switch';
+      btn.textContent = n.up ? t.off : t.on;
+      btn.setAttribute('aria-label', (n.up ? t.off : t.on) + ' ' + n.name);
+      btn.addEventListener('click', function () { toggle(n); });
+      head.appendChild(label);
+      head.appendChild(btn);
+      var list = document.createElement('div');
+      list.className = 'pods';
+      pods.filter(function (p) { return p.node === n.name; }).forEach(function (p) { list.appendChild(podEl(p)); });
+      el.appendChild(head);
+      el.appendChild(list);
+      box.appendChild(el);
+    });
+    var waiting = document.getElementById('waiting');
+    waiting.innerHTML = '';
+    var pending = pods.filter(function (p) { return p.node === null && !p.leaving; });
+    pending.forEach(function (p) { waiting.appendChild(podEl(p)); });
+    document.getElementById('cDesired').textContent = DESIRED;
+    document.getElementById('cRunning').textContent = pods.filter(function (p) { return p.node !== null && !p.leaving; }).length;
+    document.getElementById('cPending').textContent = pending.length;
+  }
+
+  function toggle(n) {
+    if (n.up) {
+      n.up = false;
+      var lost = pods.filter(function (p) { return p.node === n.name && !p.leaving; });
+      lost.forEach(function (p) { p.leaving = true; });
+      render();
+      /* force the fade to play */
+      setTimeout(function () {
+        pods = pods.filter(function (p) { return !p.leaving; });
+        reconcile();
+        render();
+      }, 650);
+      if (!nodes.some(function (x) { return x.up; })) say('allDown');
+      else if (lost.length) say('down', { name: n.name, lost: lost.length });
+      else say('downEmpty', { name: n.name });
+    } else {
+      n.up = true;
+      var pendingCount = pods.filter(function (p) { return p.node === null; }).length;
+      reconcile();
+      render();
+      if (pendingCount) say('backPending', { name: n.name, n: pendingCount });
+      else say('back', { name: n.name });
+    }
+  }
+
+  document.getElementById('rollout').addEventListener('click', function () {
+    if (!nodes.some(function (n) { return n.up; })) { say('rolloutNone'); return; }
+    pods.forEach(function (p) { p.leaving = true; });
+    render();
+    setTimeout(function () {
+      pods = [];
+      reconcile();
+      render();
+    }, 650);
+    say('rollout');
+  });
+
+  reconcile();
+  pods.forEach(function (p) { p.seen = true; });
+  setLang(lang);
+  say('idle');
+})();
+</script>
+</body>
+</html>
